@@ -1,0 +1,14 @@
+slug;display_name;tech_type;source_file;category;params_json
+transform;Trasforma Mesh;FAST;fast_transform.py;Modifica;{}
+parent;Copia Trasformazione;FAST;fast_parenting.py;Modifica;{}
+sculpt;Scolpisci;FAST;fast_transform.py;Modifica;{}
+meshcleaner;Pulisci Mesh;FAST;fast_transform.py;Modifica;{}
+delete_topology;Cancella Topologia;FAST;fast_transform.py;Modifica;{}
+split_topology;Separa Topologia;FAST;fast_transform.py;Modifica;{}
+topology_rebuild;Ricostruisci Topologia;FAST;fast_transform.py;Modifica;{}
+draw_curve;Disegna Curva;FAST;fast_transform.py;Modifica;{}
+arch_detect;Rileva Arco;FAST;fast_transform.py;Detect;{}
+curve_edit;Modifica Curva;FAST;fast_transform.py;Detect;{}
+modelgenerator;Model Generator;FAST;fast_transform.py;Modifica;{}
+slice;Slice;FAST;slice.py;Modifica;{}
+burn;Burn;FAST;-;Output;{}

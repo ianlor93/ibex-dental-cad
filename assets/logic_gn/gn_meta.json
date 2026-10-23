@@ -1,0 +1,357 @@
+{
+  "transform": {
+    "inputs": {
+      "IN_GEO_Mesh": {
+        "type": "NodeSocketGeometry",
+        "is_port": true
+      },
+      "G1_Trasla_POS": {
+        "type": "vector",
+        "label": "Traslazione",
+        "group": "Traslazione_POS",
+        "hidden": false,
+        "readonly": false,
+        "step": 0.1,
+        "default": [
+          0,
+          0,
+          0
+        ]
+      },
+      "G2_Ruota_ROT": {
+        "type": "vector",
+        "label": "Rotazione",
+        "group": "Rotazione_ROT",
+        "hidden": false,
+        "readonly": false,
+        "step": 1,
+        "default": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "outputs": {
+      "OUT_GEO_Mesh": {
+        "type": "NodeSocketGeometry",
+        "is_port": true
+      },
+      "OUT_MTX_Transform": {
+        "type": "NodeSocketMatrix",
+        "is_port": true
+      }
+    },
+    "tech_type": "FAST",
+    "display_name": "Trasforma Mesh"
+  },
+  "parent": {
+    "inputs": {
+      "IN_GEO_Mesh": {
+        "type": "NodeSocketGeometry",
+        "is_port": true
+      },
+      "IN_MTX_Parent": {
+        "type": "NodeSocketMatrix",
+        "is_port": true
+      }
+    },
+    "outputs": {
+      "OUT_GEO_Mesh": {
+        "type": "NodeSocketGeometry",
+        "is_port": true
+      }
+    },
+    "tech_type": "FAST",
+    "display_name": "Copia Trasformazione"
+  },
+  "sculpt": {
+    "inputs": {
+      "IN_GEO_Mesh": {
+        "type": "NodeSocketGeometry",
+        "is_port": true
+      }
+    },
+    "outputs": {
+      "OUT_GEO_Mesh": {
+        "type": "NodeSocketGeometry",
+        "is_port": true
+      }
+    },
+    "tech_type": "FAST",
+    "destructive": true,
+    "display_name": "Scolpisci"
+  },
+  "delete_topology": {
+    "inputs": {
+      "IN_GEO_Mesh": {
+        "type": "NodeSocketGeometry",
+        "is_port": true
+      }
+    },
+    "outputs": {
+      "OUT_GEO_Mesh": {
+        "type": "NodeSocketGeometry",
+        "is_port": true
+      }
+    },
+    "tech_type": "FAST",
+    "destructive": true,
+    "display_name": "Cancella Topologia"
+  },
+  "split_topology": {
+    "inputs": {
+      "IN_GEO_Mesh": {
+        "type": "NodeSocketGeometry",
+        "is_port": true
+      },
+      "IN_CRV_Curve": {
+        "type": "NodeSocketCurve",
+        "is_port": true,
+        "optional": true
+      }
+    },
+    "outputs": {
+      "OUT_GEO_A": {
+        "type": "NodeSocketGeometry",
+        "is_port": true
+      },
+      "OUT_GEO_B": {
+        "type": "NodeSocketGeometry",
+        "is_port": true
+      }
+    },
+    "tech_type": "FAST",
+    "destructive": true,
+    "display_name": "Separa Topologia"
+  },
+  "topology_rebuild": {
+    "inputs": {
+      "IN_GEO_Mesh": {
+        "type": "NodeSocketGeometry",
+        "is_port": true
+      }
+    },
+    "outputs": {
+      "OUT_GEO_Mesh": {
+        "type": "NodeSocketGeometry",
+        "is_port": true
+      }
+    },
+    "tech_type": "FAST",
+    "destructive": true,
+    "display_name": "Ricostruisci Topologia"
+  },
+  "draw_curve": {
+    "inputs": {
+      "IN_GEO_Mesh": {
+        "type": "NodeSocketGeometry",
+        "is_port": true
+      }
+    },
+    "outputs": {
+      "OUT_CRV_Curve": {
+        "type": "NodeSocketCurve",
+        "is_port": true
+      }
+    },
+    "tech_type": "FAST",
+    "destructive": true,
+    "display_name": "Disegna Curva"
+  },
+  "arch_detect": {
+    "inputs": {
+      "IN_GEO_Mesh": {
+        "type": "NodeSocketGeometry",
+        "is_port": true
+      }
+    },
+    "outputs": {
+      "OUT_CRV_Curve": {
+        "type": "NodeSocketCurve",
+        "is_port": true
+      }
+    },
+    "tech_type": "FAST",
+    "destructive": true,
+    "display_name": "Rileva Arco"
+  },
+  "curve_edit": {
+    "inputs": {
+      "IN_GEO_Mesh": {
+        "type": "NodeSocketGeometry",
+        "is_port": true
+      },
+      "IN_CRV_Curve": {
+        "type": "NodeSocketCurve",
+        "is_port": true
+      }
+    },
+    "outputs": {
+      "OUT_CRV_Curve": {
+        "type": "NodeSocketCurve",
+        "is_port": true
+      }
+    },
+    "tech_type": "FAST",
+    "destructive": true,
+    "display_name": "Modifica Curva"
+  },
+  "modelgenerator": {
+    "tier": 1,
+    "tech_type": "FAST",
+    "inputs": {
+      "IN_GEO_Mesh": {
+        "type": "NodeSocketGeometry",
+        "is_port": true
+      },
+      "G1_Profondita_MM": {
+        "type": "slider",
+        "label": "Profondità base (mm)",
+        "hidden": false,
+        "readonly": false,
+        "min": 5,
+        "max": 50,
+        "step": 1,
+        "default": 15
+      },
+      "G2_Margine_MM": {
+        "type": "slider",
+        "label": "Margine base (mm)",
+        "min": 0,
+        "max": 5,
+        "step": 0.5,
+        "default": 0
+      },
+      "G3_Spessore_MM": {
+        "type": "slider",
+        "label": "Spessore pareti (mm)",
+        "min": 2,
+        "max": 4,
+        "step": 0.1,
+        "default": 2.5
+      }
+    },
+    "outputs": {
+      "OUT_GEO_Mesh": {
+        "type": "NodeSocketGeometry",
+        "is_port": true
+      }
+    },
+    "display_name": "Model Generator"
+  },
+  "burn": {
+    "tier": 1,
+    "tech_type": "FAST",
+    "no_backend": true,
+    "inputs": {
+      "IN_GEO_Mesh": {
+        "type": "NodeSocketGeometry",
+        "is_port": true
+      }
+    },
+    "outputs": {},
+    "display_name": "Burn",
+    "description": "Esporta la mesh post-pipeline come STL nel cloud Nextcloud dell'utente. Trigger esplicito (bottone «Burn»)."
+  },
+  "meshcleaner": {
+    "tier": 1,
+    "tech_type": "FAST",
+    "inputs": {
+      "IN_GEO_Mesh": {
+        "type": "NodeSocketGeometry",
+        "is_port": true
+      },
+      "G1_Seleziona_Boundary_INT": {
+        "type": "slider",
+        "label": "Seleziona Boundary",
+        "hidden": false,
+        "readonly": false,
+        "min": 0,
+        "max": 20,
+        "step": 1,
+        "default": 4
+      },
+      "G2_Liscia_Boundary_INT": {
+        "type": "slider",
+        "label": "Liscia Boundary",
+        "hidden": false,
+        "readonly": false,
+        "min": 0,
+        "max": 1000,
+        "step": 1,
+        "default": 1000
+      },
+      "G3_Patch_Fori_INT": {
+        "type": "slider",
+        "label": "Patch Fori",
+        "hidden": false,
+        "readonly": false,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "default": 20
+      },
+      "G4_Patch_in_curvatura": {
+        "type": "checkbox",
+        "label": "Patch in curvatura",
+        "default": false
+      }
+    },
+    "outputs": {
+      "OUT_GEO_Mesh": {
+        "type": "NodeSocketGeometry",
+        "is_port": true
+      }
+    },
+    "display_name": "Pulisci Mesh"
+  },
+  "slice": {
+    "tier": 1,
+    "tech_type": "FAST",
+    "inputs": {
+      "IN_GEO_Mesh": {
+        "type": "NodeSocketGeometry",
+        "is_port": true
+      },
+      "G1_Origine_VEC": {
+        "type": "vector",
+        "label": "Origine piano",
+        "group": "Origine",
+        "hidden": false,
+        "readonly": false,
+        "step": 0.5,
+        "default": [
+          0,
+          0,
+          0
+        ]
+      },
+      "G2_Normale_VEC": {
+        "type": "vector",
+        "label": "Normale piano",
+        "group": "Normale",
+        "hidden": false,
+        "readonly": false,
+        "step": 0.1,
+        "default": [
+          0,
+          0,
+          1
+        ]
+      },
+      "G3_Cap": {
+        "type": "checkbox",
+        "label": "Tappa il taglio",
+        "default": true
+      }
+    },
+    "outputs": {
+      "OUT_GEO_Mesh": {
+        "type": "NodeSocketGeometry",
+        "is_port": true
+      }
+    },
+    "display_name": "Slice"
+  }
+}

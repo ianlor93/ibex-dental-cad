@@ -1,0 +1,161 @@
+
+# IBEX — esempio di docker compose. Va usato con un file `.env` accanto
+# (modello: `.env.example`). Tutti i percorsi del codice sono relativi alla
+# radice del repository; i dati stanno in ${IBEX_DATA_DIR} e lo storage di
+# Nextcloud in ${NEXTCLOUD_DATA_DIR}.
+
+services:
+  ibex-app:
+    image: ghcr.io/linuxserver/nginx:1.28.2-r0-ls346   # versione in uso alla pubblicazione
+    container_name: ibex-app
+    restart: always
+    environment:
+      - PUID=${PUID:-99}
+      - PGID=${PGID:-100}
+      - TZ=${TZ:-Europe/Rome}
+      # Database: IBEX usa solo tabelle di Nextcloud (oc_filecache, oc_storages,
+      # oc_mimetypes, oc_group_user), con il prefisso `nextcloud.` nelle query.
+      - DB_HOST=${DB_HOST}
+      - DB_NAME=${DB_NAME:-nextcloud}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      # Istanza Nextcloud che incornicia IBEX (CORS, CSP frame-ancestors, postMessage,
+      # lobby) e chiave pubblica SSO di External Sites. Vedi `.env.example`.
+      - NEXTCLOUD_URL=${NEXTCLOUD_URL}
+      - NEXTCLOUD_SSO_PUBKEY_B64=${NEXTCLOUD_SSO_PUBKEY_B64}
+      - SESSION_DOMAIN=${SESSION_DOMAIN:-}
+      # IBEX_HANDSHAKE_KEY rimossa 2026-06-14: handshake migrato a JWT ES256 (bridge
+      # JWT-only, valida con la chiave PUBBLICA di NC External Sites). Nessun segreto
+      # handshake da iniettare.
+      # Redis auth (2026-06-14): ibex-redis richiede password (--requirepass). Valore in .env.
+      - REDIS_HOST=${REDIS_HOST:-ibex-redis}
+      - IBEX_REDIS_PASS=${IBEX_REDIS_PASS}
+      - IBEX_THUMB_KEY=${IBEX_THUMB_KEY}
+    volumes:
+      - ./www:/config/www
+      - ./custom-cont-init.d:/custom-cont-init.d
+      # Storage di Nextcloud in scrittura: il burn scrive i file esportati nella
+      # cartella dell'utente (e li registra in oc_filecache).
+      - ${NEXTCLOUD_DATA_DIR:?imposta NEXTCLOUD_DATA_DIR nel .env}:/data/nextcloud-storage:rw
+      - ${IBEX_DATA_DIR:?imposta IBEX_DATA_DIR nel .env}/active:/appdata/ibex/active:rw
+      # Asset lato PHP: catalogo dei tool (tools_catalog.csv) e metadati GN.
+      # rw per la scrittura dei preset pubblici (admin) in assets/logic_preset/.
+      # Letture statiche restano sicure (nginx serving usa il mount :ro separato sotto).
+      - ./assets:/appdata/ibex/assets:rw
+      # FIX APP: Mappa gli assets nella root web per evitare l'errore 404/MIME
+      - ./assets:/config/www/assets:ro
+    # Rete del reverse proxy (opzionale): vedi la sezione `networks` in fondo al file.
+    # networks:
+    #   - default
+    #   - reverse-proxy
+
+  ibex-redis:
+    image: redis:8.8.0-alpine   # versione in uso alla pubblicazione
+    container_name: ibex-redis
+    restart: always
+    # appendonly no (C6, 2026-07-13): l'AOF persisteva su NVMe (layer container)
+    # i payload task con nomi progetto/mesh/uid. Redis qui è coda+cache effimera:
+    # lo stato autoritativo è DB+manifest. Trade-off: su crash/recreate i task
+    # ancora in coda vanno persi (raro; accettato).
+    command: redis-server --appendonly no --requirepass ${IBEX_REDIS_PASS}
+
+  # =============================================================================
+  # WORKER POOL — Tier A (2026-04-30): 3 replicas paralleli sulla stessa coda
+  # Redis. brpop atomico → primo worker libero prende il task. Mutex per progetto
+  # via SETNX `ibex_lock_{pid}` (già esistente) garantisce isolamento: 2 worker
+  # NON possono lavorare sullo stesso progetto, ma SÌ su progetti diversi.
+  # Per scalare orizzontalmente: aggiungere ibex-worker-4, -5 con stessa anchor.
+  # =============================================================================
+  ibex-worker-1: &worker-base
+    # V1.0 Dockerfile custom (2026-05-05): pip install spostato in BUILD-TIME
+    # per consentire la condivisione delle librerie native tra i 6 worker via
+    # overlayfs read-only. Pre-V1.0: ogni container faceva pip install
+    # nell'entrypoint, scrivendo nel proprio layer writable → no sharing,
+    # Shared_Clean=2MB/worker, PSS==RSS, ~3-4GB RAM duplicati. Post-V1.0:
+    # tutti i container istanziati dalla stessa image → page cache kernel
+    # deduplica le pagine code-RO. Vedi il Dockerfile alla radice del repository.
+    # Build (una volta): docker compose build ibex-worker-1
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ibex-worker:v1.0
+    container_name: ibex-worker-1
+    restart: always
+    # Cap RAM 4GB per worker (2026-04-30):
+    # Modelgenerator V3.19 peak ~1.5-2GB durante voxelize SDF + manifold3d boolean.
+    # 4GB hard cap = 2× margine sopra peak → previene OOM kill cascada di altri
+    # container (ibex-app, ibex-redis, Nextcloud) se un singolo worker va in
+    # runaway memory. Quando un worker supera 4GB → kernel OOM killer kill SOLO
+    # quel container, `restart: always` lo riavvia automaticamente. I task in
+    # volo persi sono gestiti dal LIFO dedup Redis (latest_preview_{pid}).
+    # NOTA: memswap_limit NON impostato perché kernel Unraid non lo supporta
+    # (warning "kernel does not support swap limit capabilities"). In pratica
+    # OK perché Unraid di default non ha swap attivo → niente fallback swap
+    # quando il container raggiunge 4GB → OOM kill diretto, comportamento atteso.
+    mem_limit: 4g
+    # DE-ROOT (2026-06-14): i worker NON girano più come root. user PUID:PGID (default
+    # 99:100, stesso uid di ibex-app), cap_drop ALL, no-new-privileges → un RCE C1 ora è
+    # un uid senza privilegi né capabilities invece di root. ⚠️ Containment PARZIALE: lo
+    # storage di Nextcloud resta montato :rw (il worker vi scrive gli archivi .ibex) → un
+    # RCE scrive comunque in Nextcloud; il vero fix è C1.
+    # fix_permissions (filesystem.py): os.chown è già best-effort (try/except pass) → nessun
+    # crash senza CAP_CHOWN; i file esistenti sono 0666/0777 → uid 99 li scrive comunque.
+    user: "${PUID:-99}:${PGID:-100}"
+    cap_drop:
+      - ALL
+    security_opt:
+      - "no-new-privileges:true"
+    environment:
+      # HOME=/tmp: Blender + matplotlib come utente non root richiedono una HOME scrivibile.
+      - HOME=/tmp
+      - REDIS_HOST=${REDIS_HOST:-ibex-redis}
+      - PUID=${PUID:-99}
+      - PGID=${PGID:-100}
+      # Nessuna variabile DB_*: il worker non usa il database.
+      # Ciclo-vita 2026-07-13 (Legge 1): cache SDF migrata PER-PROGETTO in
+      # active_path/sdf/ (viaggia nel .ibex). Env IBEX_SDF_CACHE_GLOBAL e mount rimossi.
+      - IBEX_REDIS_PASS=${IBEX_REDIS_PASS}
+      - IBEX_ARCHIVE_KEY=${IBEX_ARCHIVE_KEY}
+      - IBEX_THUMB_KEY=${IBEX_THUMB_KEY}
+    volumes:
+      - ./worker:/app
+      # Storage di Nextcloud in scrittura: il worker salva gli archivi .ibex nella
+      # cartella IBEX/ dell'utente.
+      - ${NEXTCLOUD_DATA_DIR:?imposta NEXTCLOUD_DATA_DIR nel .env}:/data/nextcloud-storage:rw
+      - ${IBEX_DATA_DIR:?imposta IBEX_DATA_DIR nel .env}/active:/appdata/ibex/active:rw
+      - ./assets:/appdata/ibex/assets:rw
+    # V1.0 Dockerfile (2026-05-05): apt + pip spostati in build-time. Entrypoint
+    # è ora ["/usr/local/blender/blender", "-b", "-noaudio", "-P", "/app/worker.py"]
+    # definito direttamente nel Dockerfile. Boot ~1-2s vs ~5-10min pre-V1.0.
+
+  ibex-worker-2:
+    <<: *worker-base
+    container_name: ibex-worker-2
+
+  ibex-worker-3:
+    <<: *worker-base
+    container_name: ibex-worker-3
+
+  ibex-worker-4:
+    <<: *worker-base
+    container_name: ibex-worker-4
+
+  ibex-worker-5:
+    <<: *worker-base
+    container_name: ibex-worker-5
+
+  ibex-worker-6:
+    <<: *worker-base
+    container_name: ibex-worker-6
+
+# ── Rete del reverse proxy (opzionale) ──────────────────────────────────────
+# Di default tutti i servizi stanno sulla rete del progetto (`default`): ibex-app,
+# ibex-redis e i worker si vedono per nome. ibex-app non pubblica porte: per
+# raggiungerla, collegala alla rete esterna già usata dal tuo reverse proxy (e da
+# Nextcloud, se Nextcloud chiama IBEX per nome host):
+#   1. decommenta il blocco qui sotto e il `networks:` nel servizio ibex-app;
+#   2. sostituisci `reverse-proxy` con il nome della rete del tuo proxy.
+# In alternativa, senza reverse proxy, aggiungi a ibex-app `ports: ["8080:80"]`.
+# networks:
+#   reverse-proxy:
+#     external: true

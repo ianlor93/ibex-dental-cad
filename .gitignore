@@ -1,0 +1,29 @@
+# Ambiente e segreti (il modello resta versionato)
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+
+# File temporanei, backup e residui di sistema
+*.bak*
+*.orig
+*~
+.DS_Store
+.smbdelete*
+
+# Preset scritti a runtime dagli amministratori
+assets/logic_preset/
+
+# Archivi di progetto: contengono dati clinici
+*.ibex
+
+# Dati di IBEX, nel caso IBEX_DATA_DIR punti dentro il repository
+/active/
+/processing/
+
+# Strumenti e note di sviluppo locali
+.claude/
+CLAUDE.md

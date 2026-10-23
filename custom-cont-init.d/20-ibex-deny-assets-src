@@ -1,0 +1,69 @@
+#!/bin/sh
+# 20-ibex-deny-assets-src
+# Re-inietta il deny dei sorgenti proprietari sotto /assets/ a ogni boot del container.
+# Durevole ai `docker compose up -d --force-recreate ibex-app`, che puo' ripristinare
+# default.conf dal sample linuxserver e riaprire il leak HTTP dei .py/.pyc di logic_py.
+# Idempotente: se il marker "IBEX hardening" e' gia' presente nel default.conf -> no-op.
+CONF=/config/nginx/site-confs/default.conf
+if grep -q 'IBEX hardening' "$CONF" 2>/dev/null; then
+    exit 0
+fi
+cat > "$CONF" <<'NGINX_EOF'
+## Version 2025/05/31 - Changelog: https://github.com/linuxserver/docker-baseimage-alpine-nginx/commits/3.22/root/defaults/nginx/site-confs/default.conf.sample
+
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    listen 443 ssl default_server;
+    listen [::]:443 ssl default_server;
+    listen 443 quic reuseport default_server;
+    listen [::]:443 quic reuseport default_server;
+
+    server_name _;
+
+    include /config/nginx/ssl.conf;
+
+    set $root /app/www/public;
+    if (!-d /app/www/public) {
+        set $root /config/www;
+    }
+    root $root;
+    index index.html index.htm index.php;
+
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 10240;
+    gzip_types application/octet-stream;
+    gzip_comp_level 4;
+    gzip_proxied any;
+
+    # IBEX hardening: blocca i sorgenti proprietari del motore geometrico esposti via /assets/ (recon 2026-06)
+    location ^~ /assets/logic_py/ { return 404; }
+    location ~* ^/assets/.*\.(py|pyc|bak|tar\.gz|tgz|zip|env|key|pem|sql|log)$ { return 404; }
+
+    location / {
+        # enable for basic auth
+        #auth_basic "Restricted";
+        #auth_basic_user_file /config/nginx/.htpasswd;
+
+        try_files $uri $uri/ /index.html /index.htm /index.php$is_args$args;
+    }
+
+    location ~ ^(.+\.php)(.*)$ {
+        # enable the next two lines for http auth
+        #auth_basic "Restricted";
+        #auth_basic_user_file /config/nginx/.htpasswd;
+
+        fastcgi_split_path_info ^(.+\.php)(.*)$;
+        if (!-f $document_root$fastcgi_script_name) { return 404; }
+        fastcgi_pass 127.0.0.1:9000;
+        fastcgi_index index.php;
+        include /etc/nginx/fastcgi_params;
+    }
+
+    # deny access to .htaccess/.htpasswd files
+    location ~ /\.ht {
+        deny all;
+    }
+}
+NGINX_EOF

@@ -1,0 +1,16 @@
+# Dipendenze dirette del worker, versioni verificate sull'installazione in uso; numpy è quella inclusa in Blender 4.5
+cryptography==49.0.0
+DracoPy==2.0.0
+fast-simplification==0.1.13
+libigl==2.6.2
+manifold3d==3.5.2
+matplotlib==3.11.0
+numpy==1.26.4
+open3d==0.19.0
+pymeshlab==2025.7.post1
+redis==8.0.1
+rtree==1.4.1
+scikit-image==0.26.0
+scipy==1.17.1
+shapely==2.1.2
+trimesh==4.12.2
